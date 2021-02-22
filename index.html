@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<title>intersectionObserver testing</title>
+
+<!-- not async yet -->
+<script src="https://acdn.adnxs.com/prebid/not-for-prod/prebid.js"></script>
+
+<style>
+body {
+  background-color: white;
+  margin: 0;
+  padding: 0;
+}
+.fill {
+  height: 400px;
+  background-color: #abcdef;
+}
+.ad {
+  background-color: #ccc;
+}
+</style>
+<script>
+var __ia = function intersectionAds(pbjs) {
+  const PREBID_TIMEOUT = 1000;
+
+  let getAdUnits = function getAdUnits(element) {
+    let adUnits = [{
+      code: element.getAttribute('id'),
+      mediaTypes: {
+        banner: {
+          sizes: [
+            Number(element.getAttribute('width')),
+            Number(element.getAttribute('height'))
+          ]
+        }
+      },
+      bids: [{
+        bidder: 'appnexus',
+        params: {
+          placementId: 13144370
+        }
+      }]
+    }];
+    return adUnits;
+  }
+
+  // creates a safe frame with an id based on the placement you pass in with a
+  // starting width and height that you pass in. does not add it to the DOM
+  let makeSafeFrame = function(placement, width, height) {
+    var frame = document.createElement("iframe");
+    frame.setAttribute("id", placement + "-frame");
+    frame.setAttribute("FRAMEBORDER", 0);
+    frame.setAttribute("SCROLLING", "no");
+    frame.setAttribute("MARGINHEIGHT", 0);
+    frame.setAttribute("MARGINWIDTH", 0);
+    frame.setAttribute("TOPMARGIN", 0);
+    frame.setAttribute("LEFTMARGIN", 0);
+    frame.setAttribute("ALLOWTRANSPARENCY", "true");
+    frame.setAttribute("width", width);
+    frame.setAttribute("height", height);
+    return frame;
+  };
+
+  let startAuction = function startAuction(element) {
+    console.log('totally auctioning');
+    console.log(element);
+    let width = element.getAttribute('width');
+    let height = element.getAttribute('height');
+    let id = element.getAttribute('id');
+
+    pbjs.que.push(function() {
+      console.log('pushed doodad running')
+      pbjs.removeAdUnit();
+      pbjs.addAdUnits(getAdUnits(element));
+      pbjs.requestBids({
+        timeout: PREBID_TIMEOUT,
+        bidsBackHandler: function(bids) {
+          var iframe = makeSafeFrame(id, width, height);
+          element.appendChild(iframe); // have to inject into dom for the contentWindow to get defined
+          var iframeDoc = iframe.contentWindow.document;
+          var adServerTargeting = pbjs.getAdserverTargetingForAdUnitCode(element.getAttribute('id'));
+
+          // If any bidders return any creatives
+          if (adServerTargeting && adServerTargeting['hb_adid']) {
+            pbjs.renderAd(iframeDoc, adServerTargeting['hb_adid']);
+            viewable.observe(element);
+          } else {
+            iframeDoc.write('<head></head><body>i only work on the real tubes</body>');
+            iframeDoc.close();
+            viewable.observe(element); // probably don't really want this.
+          }
+        }
+      });
+    });
+  }
+
+  // options for the iO that starts auctions
+  let adLoaderOptions = {
+    root: null,
+    rootMargin: '100px 0px', // specifies edges around the element so that the 0 percent intersection trigger can fire before you get to the ad;
+    threshold: 0
+  };
+
+  // options for the iO that fires when the ad is viewed
+  let viewableOptions = {
+    root: null,
+    rootMargin: '0px', // for checking viewability we want to fire only when the ad is fully in view
+    threshold: 1
+  }
+
+  // the iO callback, which is shared between the two iO's, but maybe shouldn't be.
+  let obsCallback = (entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        console.log('in');
+        console.log(entry);
+        if (!entry.target.auctionStarted) {
+          startAuction(entry.target);
+          entry.target.auctionStarted = true;
+          observer.unobserve(entry.target);
+          // once the auction has started, stop observing this entry
+        }
+        else if (entry.intersectionRatio === 1) {
+          console.log('ad is fully in view');
+          entry.target.style.border = '1px solid orange';
+          observer.unobserve(entry.target);
+          // once the ad is viewed, the viewable observer doesn't care anymore
+        }
+      }
+    });
+  };
+  var adLoader = new IntersectionObserver(obsCallback, adLoaderOptions);
+  var viewable = new IntersectionObserver(obsCallback, viewableOptions);
+
+  var domloaded = function dom_has_loaded(e) {
+    var elements = [...document.getElementsByClassName('ad')];
+    elements.forEach(el => {
+      adLoader.observe(el);
+    });
+  }
+
+  return {
+    domloaded: domloaded,
+  }
+}(pbjs);
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    __ia.domloaded(event);
+});
+
+</script>
+</head>
+<body>
+<div class="fill"></div>
+<div id="one" class="ad" width="728" height="90"></div>
+<div class="fill"></div>
+<div id="two" class="ad" width="728" height="90"></div>
+<div class="fill"></div>
+<div id="three" class="ad" width="728" height="90"></div>
+<div class="fill"></div>
+<div id="four" class="ad" width="728" height="90"></div>
+</body>
+</html>
