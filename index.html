@@ -25,24 +25,30 @@ body {
 var __ia = function intersectionAds(pbjs) {
   const PREBID_TIMEOUT = 1000;
 
-  let getAdUnits = function getAdUnits(element) {
-    let adUnits = [{
-      code: element.getAttribute('id'),
-      mediaTypes: {
-        banner: {
-          sizes: [
-            Number(element.getAttribute('width')),
-            Number(element.getAttribute('height'))
-          ]
-        }
-      },
-      bids: [{
-        bidder: 'appnexus',
-        params: {
-          placementId: 13144370
-        }
-      }]
-    }];
+  // return the prebid adUnits for the list of elements passed in
+  // creates sizes from the attibutes on the element
+  let getAdUnits = function getAdUnits(list) {
+    let adUnits = [];
+    
+    list.forEach(element => {
+      adUnits.push({
+        code: element.getAttribute('id'),
+        mediaTypes: {
+          banner: {
+            sizes: [
+              Number(element.getAttribute('width')),
+              Number(element.getAttribute('height'))
+            ]
+          }
+        },
+        bids: [{
+          bidder: 'appnexus',
+          params: {
+            placementId: 13144370
+          }
+        }]
+      });
+    })
     return adUnits;
   }
 
@@ -63,66 +69,72 @@ var __ia = function intersectionAds(pbjs) {
     return frame;
   };
 
-  let startAuction = function startAuction(element) {
-    console.log('totally auctioning');
-    console.log(element);
-    let width = element.getAttribute('width');
-    let height = element.getAttribute('height');
-    let id = element.getAttribute('id');
-
+  let startAuction = function startAuction(list) {
     pbjs.que.push(function() {
-      console.log('pushed doodad running')
-      pbjs.removeAdUnit();
-      pbjs.addAdUnits(getAdUnits(element));
+      pbjs.removeAdUnit(); // remove any adunits we previously ran auctions for.
+      pbjs.addAdUnits(getAdUnits(list));
       pbjs.requestBids({
         timeout: PREBID_TIMEOUT,
         bidsBackHandler: function(bids) {
-          var iframe = makeSafeFrame(id, width, height);
-          element.appendChild(iframe); // have to inject into dom for the contentWindow to get defined
-          var iframeDoc = iframe.contentWindow.document;
-          var adServerTargeting = pbjs.getAdserverTargetingForAdUnitCode(element.getAttribute('id'));
+          list.forEach(element => {
+            let width = element.getAttribute('width');
+            let height = element.getAttribute('height');
+            let id = element.getAttribute('id');
 
-          // If any bidders return any creatives
-          if (adServerTargeting && adServerTargeting['hb_adid']) {
-            pbjs.renderAd(iframeDoc, adServerTargeting['hb_adid']);
-            viewable.observe(element);
-          } else {
-            iframeDoc.write('<head></head><body>i only work on the real tubes</body>');
-            iframeDoc.close();
-            viewable.observe(element); // probably don't really want this.
-          }
+            var iframe = makeSafeFrame(id, width, height);
+            element.appendChild(iframe); // have to inject into dom for the contentWindow to get defined
+            var iframeDoc = iframe.contentWindow.document;
+            var adServerTargeting = pbjs.getAdserverTargetingForAdUnitCode(id);
+
+            // If any bidders return any creatives
+            if (adServerTargeting && adServerTargeting['hb_adid']) {
+              pbjs.renderAd(iframeDoc, adServerTargeting['hb_adid']);
+              // once we've rendered the ad, observe for viewability
+              viewable.observe(element);
+            } else {
+              iframeDoc.write('<head></head><body>i only work on the real tubes</body>');
+              iframeDoc.close();
+              viewable.observe(element); // probably don't really want this, but for testing
+            }
+          })
         }
       });
     });
   }
 
-  // options for the iO that starts auctions
+  // options for the iO that starts auctions. This one has a non zero root Margin, so that we will start the auction
+  // before the ad is actually in view. The threshold is set to zero, because we want this to fire as soon as you get
+  // within the rootMargin of seeing the ad.
   let adLoaderOptions = {
     root: null,
-    rootMargin: '100px 0px', // specifies edges around the element so that the 0 percent intersection trigger can fire before you get to the ad;
+    rootMargin: '100px 0px',
     threshold: 0
   };
 
-  // options for the iO that fires when the ad is viewed
+  // options for the iO that fires when the ad is viewed.  This one has no root margin, and a threshold of 1, 
+  // because we only want it to fire when the entire ad placement has come into view.  This might actually be too
+  // aggressive, because ads that are obscured, possibly by the edge of a browser if you're too narrow or something
+  // will never have this fire.
   let viewableOptions = {
     root: null,
-    rootMargin: '0px', // for checking viewability we want to fire only when the ad is fully in view
+    rootMargin: '0px',
     threshold: 1
   }
 
   // the iO callback, which is shared between the two iO's, but maybe shouldn't be.
   let obsCallback = (entries, observer) => {
+    let toStart = [];
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        console.log('in');
-        console.log(entry);
         if (!entry.target.auctionStarted) {
-          startAuction(entry.target);
+          // if we're intersecting, and an auction hasn't started, start an auction.
           entry.target.auctionStarted = true;
+          toStart.push(entry.target);
           observer.unobserve(entry.target);
           // once the auction has started, stop observing this entry
         }
         else if (entry.intersectionRatio === 1) {
+          // if we're fully intersected, and the auction started
           console.log('ad is fully in view');
           entry.target.style.border = '1px solid orange';
           observer.unobserve(entry.target);
@@ -130,6 +142,9 @@ var __ia = function intersectionAds(pbjs) {
         }
       }
     });
+    if (toStart.length) {
+      startAuction(toStart);
+    }
   };
   var adLoader = new IntersectionObserver(obsCallback, adLoaderOptions);
   var viewable = new IntersectionObserver(obsCallback, viewableOptions);
