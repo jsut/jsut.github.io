@@ -71,6 +71,7 @@ var __ia = function intersectionAds(pbjs) {
 
   let startAuction = function startAuction(list) {
     pbjs.que.push(function() {
+      console.log('auction starting: ' + list.map(el => el.getAttribute('id')).join(' '));
       pbjs.removeAdUnit(); // remove any adunits we previously ran auctions for.
       pbjs.addAdUnits(getAdUnits(list));
       pbjs.requestBids({
@@ -89,6 +90,7 @@ var __ia = function intersectionAds(pbjs) {
             // If any bidders return any creatives
             if (adServerTargeting && adServerTargeting['hb_adid']) {
               pbjs.renderAd(iframeDoc, adServerTargeting['hb_adid']);
+              console.log('ad rendered');
               // once we've rendered the ad, observe for viewability
               viewable.observe(element);
             } else {
