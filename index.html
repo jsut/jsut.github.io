@@ -5,7 +5,7 @@
 <title>intersectionObserver testing</title>
 
 <!-- not async yet -->
-<script src="https://acdn.adnxs.com/prebid/not-for-prod/prebid.js"></script>
+<script async src="https://acdn.adnxs.com/prebid/not-for-prod/prebid.js"></script>
 
 <style>
 body {
@@ -22,8 +22,12 @@ body {
 }
 </style>
 <script>
-var __ia = function intersectionAds(pbjs) {
+var __ia = function intersectionAds(w) {
   const PREBID_TIMEOUT = 1000;
+  // hook our internal pbjs up to the global pbjs, which isn't defined yet but will be eventually.
+  w.pbjs = w.pbjs || {};
+  w.pbjs.que = w.pbjs.que || [];
+  let pbjs = w.pbjs;
 
   // return the prebid adUnits for the list of elements passed in
   // creates sizes from the attibutes on the element
@@ -151,7 +155,9 @@ var __ia = function intersectionAds(pbjs) {
   var adLoader = new IntersectionObserver(obsCallback, adLoaderOptions);
   var viewable = new IntersectionObserver(obsCallback, viewableOptions);
 
-  var domloaded = function dom_has_loaded(e) {
+  var domloaded = function dom_has_loaded(e, w) {
+    console.log('fuck');
+    console.log(pbjs);
     var elements = [...document.getElementsByClassName('ad')];
     elements.forEach(el => {
       adLoader.observe(el);
@@ -161,7 +167,7 @@ var __ia = function intersectionAds(pbjs) {
   return {
     domloaded: domloaded,
   }
-}(pbjs);
+}(window);
 
 window.addEventListener('DOMContentLoaded', (event) => {
     __ia.domloaded(event);
