@@ -102,6 +102,9 @@ var __ia = function intersectionAds(w) {
               iframeDoc.close();
               viewable.observe(element); // probably don't really want this, but for testing
             }
+            iframeDoc.addEventListener('click', (event) => {
+              console.log('shit got clicked');
+            });
           })
         }
       });
