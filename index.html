@@ -2,9 +2,9 @@
 <html lang="en-US">
 <head>
 <meta charset="utf-8">
-<title>intersectionObserver testing</title>
+<title>Prebid.js and Intersection Observer.  Lazy loading ads, without an ad server</title>
 
-<!-- not async yet -->
+<!-- This is the testing (bloated) version of prebid.js used in the prebid docs -->
 <script async src="https://acdn.adnxs.com/prebid/not-for-prod/prebid.js"></script>
 
 <style>
@@ -15,7 +15,6 @@ body {
 }
 .fill {
   height: 400px;
-  background-color: #abcdef;
 }
 .ad {
   background-color: #ccc;
@@ -23,7 +22,7 @@ body {
 </style>
 <script>
 var __ia = function intersectionAds(w) {
-  const PREBID_TIMEOUT = 1000;
+  const PREBID_TIMEOUT = 500;
   // hook our internal pbjs up to the global pbjs, which isn't defined yet but will be eventually.
   w.pbjs = w.pbjs || {};
   w.pbjs.que = w.pbjs.que || [];
@@ -31,9 +30,11 @@ var __ia = function intersectionAds(w) {
 
   // return the prebid adUnits for the list of elements passed in
   // creates sizes from the attibutes on the element
+  // uses the appnexus test configuration from prebid docs. This won't ever get filled running on github pages
+  // unless you cname to a real domain. Maybe an ads.txt problem, I have no idea.
   let getAdUnits = function getAdUnits(list) {
     let adUnits = [];
-    
+
     list.forEach(element => {
       adUnits.push({
         code: element.getAttribute('id'),
@@ -73,6 +74,8 @@ var __ia = function intersectionAds(w) {
     return frame;
   };
 
+  // this starts an auction, possibly for multiple placements, and sets up a bidsBackHandler that 
+  // will render the winning bids for the placement(s) without using an ad server.
   let startAuction = function startAuction(list) {
     pbjs.que.push(function() {
       console.log('auction starting: ' + list.map(el => el.getAttribute('id')).join(' '));
@@ -98,12 +101,15 @@ var __ia = function intersectionAds(w) {
               // once we've rendered the ad, observe for viewability
               viewable.observe(element);
             } else {
+              // if we didn't get any bids, do something?
               iframeDoc.write('<head></head><body>i only work on the real tubes</body>');
               iframeDoc.close();
               viewable.observe(element); // probably don't really want this, but for testing
             }
+            // this injects a click handler into the iframe, and lets us detect when an ad has been clicked on, if we
+            // wanted to track that sort of thing.
             iframeDoc.addEventListener('click', (event) => {
-              console.log('shit got clicked');
+              console.log(element.id + ' got clicked');
             });
           })
         }
@@ -159,8 +165,7 @@ var __ia = function intersectionAds(w) {
   var viewable = new IntersectionObserver(obsCallback, viewableOptions);
 
   var domloaded = function dom_has_loaded(e, w) {
-    console.log('fuck');
-    console.log(pbjs);
+    // when the dom loads, we go look for ad divs, and set the adLoader up to observe them, which will start auctions if they are in or near view
     var elements = [...document.getElementsByClassName('ad')];
     elements.forEach(el => {
       adLoader.observe(el);
@@ -179,7 +184,13 @@ window.addEventListener('DOMContentLoaded', (event) => {
 </script>
 </head>
 <body>
-<div class="fill"></div>
+<h1>Prebid.js Intersection Observer Lazy Loading</h1>
+<div class="fill">
+<p>When the dom loads, a couple of IntersectionObserver are created, and the DOM is searched for elements with the class 'ad'. an IntersectionObserver is
+added to the div's found, which will start auctions with prebid.js if an ad is intersecting, or near intersecting the viewport. Another IntersectionObserver
+is used to fire some code when the ad comes fully into view. When the ad is rendered, a click handler is injected into the safe frame which allows us
+to run javascript if and when the ad is clicked.</p>
+</div>
 <div id="one" class="ad" width="728" height="90"></div>
 <div class="fill"></div>
 <div id="two" class="ad" width="728" height="90"></div>
