@@ -18,6 +18,7 @@ body {
 }
 .ad {
   background-color: #ccc;
+  height: 90px;
 }
 </style>
 <script>
@@ -41,8 +42,8 @@ var __ia = function intersectionAds(w) {
         mediaTypes: {
           banner: {
             sizes: [
-              Number(element.getAttribute('width')),
-              Number(element.getAttribute('height'))
+                728,
+                90
             ]
           }
         },
@@ -85,11 +86,9 @@ var __ia = function intersectionAds(w) {
         timeout: PREBID_TIMEOUT,
         bidsBackHandler: function(bids) {
           list.forEach(element => {
-            let width = element.getAttribute('width');
-            let height = element.getAttribute('height');
             let id = element.getAttribute('id');
 
-            var iframe = makeSafeFrame(id, width, height);
+            var iframe = makeSafeFrame(id, 728, 90);
             element.appendChild(iframe); // have to inject into dom for the contentWindow to get defined
             var iframeDoc = iframe.contentWindow.document;
             var adServerTargeting = pbjs.getAdserverTargetingForAdUnitCode(id);
@@ -191,12 +190,12 @@ added to the div's found, which will start auctions with prebid.js if an ad is i
 is used to fire some code when the ad comes fully into view. When the ad is rendered, a click handler is injected into the safe frame which allows us
 to run javascript if and when the ad is clicked.</p>
 </div>
-<div id="one" class="ad" width="728" height="90"></div>
+<div id="one" class="ad"></div>
 <div class="fill"></div>
-<div id="two" class="ad" width="728" height="90"></div>
+<div id="two" class="ad"></div>
 <div class="fill"></div>
-<div id="three" class="ad" width="728" height="90"></div>
+<div id="three" class="ad"></div>
 <div class="fill"></div>
-<div id="four" class="ad" width="728" height="90"></div>
+<div id="four" class="ad"></div>
 </body>
 </html>
