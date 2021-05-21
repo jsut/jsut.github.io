@@ -151,7 +151,7 @@ var __ia = function intersectionAds(w) {
         else if (entry.intersectionRatio === 1) {
           // if we're fully intersected, and the auction started
           console.log('ad is fully in view');
-          entry.target.style.border = '1px solid orange';
+          entry.target.style.outline = '#4CAF50 solid 10px';
           observer.unobserve(entry.target);
           // once the ad is viewed, the viewable observer doesn't care anymore
         }
