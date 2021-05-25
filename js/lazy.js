@@ -1,7 +1,7 @@
 var __ia = function intersectionAds() {
   const PREBID_TIMEOUT = 500;
   const DEBUG = true;
-  const IAB_VIEWABLE_TIME = 3000;
+  const IAB_VIEWABLE_TIME = 1000;
   const IAB_VIEWABLE_THRESHOLD = 0.5
 
   // hook our internal pbjs up to the global pbjs, which may not be defined yet but will be eventually.
