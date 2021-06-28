@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prebid.js and Native ads, without an ad server</title>
+
+<script src="https://cdn.jsdelivr.net/npm/prebid-universal-creative@latest/dist/native-render.js"></script>
+<script async src="//acdn.adnxs.com/prebid/not-for-prod/prebid.js"></script>
+  <script>
+    var pbjs = pbjs || {};
+    pbjs.que = pbjs.que || [];
+
+    pbjs.que.push(function() {
+        var adUnits = [
+            {
+              code: 'regular_iframe',
+              mediaTypes: {
+                banner: {
+                  sizes: [[728,90]]
+                }
+              },
+              bids: [
+                {
+                  bidder: 'appnexus',
+                  params: {
+                     placementId: 13144370
+                  }
+                }
+              ]
+          },
+          {
+            code: 'native_iframe',
+            sizes: [
+                [360, 360]
+            ],
+            mediaTypes: {
+                native: {
+                    sendTargetingKeys: false,
+                    adTemplate: "<div class=\"sponsored-post\">\r\n  <div class=\"thumbnail\" style=\"background-image: url(##hb_native_image##);\"><\/div>\r\n  <div class=\"content\">\r\n  <h1>\r\n    <a href=\"%%CLICK_URL_UNESC%%##hb_native_linkurl##\" target=\"_blank\" class=\"pb-click\">\r\n  ##hb_native_title##\r\n    <\/a>\r\n   <\/h1>\r\n    <p>##hb_native_body##<\/p>\r\n    \t<div class=\"attribution\">\r\n \t##hb_native_brand##\r\n           \t<\/div>\r\n\t<\/div>\r\n<\/div>",
+
+                    title: {
+                        required: true
+                    },
+                    body: {
+                        required: true
+                    },
+                    sponsoredBy: {
+                        required: true
+                    }
+                }
+            },
+            bids: [{
+                bidder: 'appnexus',
+                params: {
+                    placementId: 13232354,
+                    allowSmallerSizes: true
+                }
+            }]
+          },
+        ];
+
+        pbjs.setConfig({
+          bidderTimeout: 1000,
+        });
+
+        pbjs.addAdUnits(adUnits);
+
+        pbjs.requestBids({
+          bidsBackHandler: function(bidResponses) {
+            Object.keys(bidResponses).forEach(adUnitCode => {
+              var highestCpmBids = pbjs.getHighestCpmBids(adUnitCode);
+              var winner = highestCpmBids.pop();
+              if (winner && winner.mediaType === 'banner') {
+                var iframe = document.getElementById(adUnitCode);
+                var iframeDoc = iframe.contentWindow.document;
+                pbjs.renderAd(iframeDoc, winner.adId);
+              }
+              else if (winner && winner.mediaType === 'native') {
+                winner.requestAllAssets = true;
+                window.pbNativeTag.renderNativeAd(winner)
+              } else {
+                var iframe = document.getElementById(adUnitCode);
+                var iframeDoc = iframe.contentWindow.document;
+                iframeDoc.write('<head></head><body>no ad or weird ad</body>');
+                iframeDoc.close();
+              }
+            });
+          }
+        })
+    });
+  </script>
+
+
+<style>
+body {
+  background-color: white;
+  margin: 0;
+  padding: 0;
+}
+.fill {
+  height: 400px;
+}
+.ad {
+  background-color: #ccc;
+  height: 90px;
+}
+</style>
+</head>
+<body>
+<h1>Prebid.js Native Test</h1>
+    <iframe id='regular_iframe'
+            FRAMEBORDER="0"
+            SCROLLING="no"
+            MARGINHEIGHT="0"
+            MARGINWIDTH="0"
+            TOPMARGIN="0"
+            LEFTMARGIN="0"
+            ALLOWTRANSPARENCY="true"
+            WIDTH="0"
+            HEIGHT="0">
+    </iframe>
+    <iframe id='native_iframe'
+            FRAMEBORDER="0"
+            SCROLLING="no"
+            MARGINHEIGHT="0"
+            MARGINWIDTH="0"
+            TOPMARGIN="0"
+            LEFTMARGIN="0"
+            ALLOWTRANSPARENCY="true"
+            WIDTH="0"
+            HEIGHT="0">
+    </iframe>
+</body>
+</html>
